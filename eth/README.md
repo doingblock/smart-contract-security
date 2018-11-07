@@ -139,7 +139,32 @@ for (var i = 0; i < somethingLarge; i ++) {
 * [Integer overflow code example](https://github.com/trailofbits/not-so-smart-contracts/tree/master/integer_overflow)
 
 
-# 4. 未经检查的底层调用
+## 4. 未经检查的底层调用
+也被称为（或相关）**默认失败的send，未经检查的send**  
+_任何时候都不要使用底层的"call"函数，否则在未恰当的处理其返回值的情况下它将导致不可预知的行为。——Remix_  
+
+Solidity中一个深层次的特性是其底层函数`call()`,`callcode()`,`delegatecall()`和`send()`，它们在处理错误时的行为与Solidity中其他的函数完全不同：这些函数不会传播（向上冒泡）错误/异常，也不会回滚恢复当前执行的操作。取而代之，它们会在失败时返回`false`，随后代码继续执行。这样的行为令程序员们很惊讶，如果这种底层函数调用的返回值没有进行检查，将会毫无容错并导致非预期结果。记住，send可能会失败！  
+
+**现实案例影响**  
+* [King of the Ether](https://www.kingoftheether.com/postmortem.html)
+* [Etherpot](http://www.dasp.co/)
+
+**示例**  
+如下代码是一个忘记检查`send()`返回值将会导致错误的示例。如果该调用是用来向一个不能接受ether的合约（比如合约没有一个使用payable修饰的fallback函数）发送ether，EVM会将返回值置为`false`。由于返回值并没有进行检查，这个函数对合约状态所做的修改不会得到恢复，结果就是`etherLeft`会跟踪记录一个错误的数值。  
+```
+function withdraw(uint256 _amount) public {
+	require(balances[msg.sender] >= _amount);
+	balances[msg.sender] -= _amount;
+	etherLeft -= _amount;
+	msg.sender.send(_amount);
+}
+```
+
+**其他资源**  
+* [Unchecked external call](https://github.com/trailofbits/not-so-smart-contracts/tree/master/unchecked_external_call)
+* [Scanning Live Ethereum Contracts for the "Unchecked-Send" Bug](http://hackingdistributed.com/2016/06/16/scanning-live-ethereum-contracts-for-bugs/)
+
+
 # 5. 拒绝服务
 # 6. 伪随机性
 # 7. 前端运行
