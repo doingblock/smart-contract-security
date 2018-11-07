@@ -12,17 +12,17 @@ DASP Top 10
 
 重入攻击，也许是以太坊中最著名的漏洞了，当它第一次被发现时使所有人都大吃一惊。它第一次亮相就导致了数百万美元的资金被盗，并直接导致以太坊的硬分叉。重入攻击在两种场景下会发现：1、合约层面，外部合约被允许调用初始化未完成的合约；2、函数而言，其发生在合约状态因为执行过程中调用不可信合约或外部地址具有使用低层次函数而发生变化时。
 
-__损失__：  
+__损失__  
 预计3.5M ETH（约合50M美元）  
 
-__漏洞发现的时间线：__  
+__漏洞发现的时间线__  
 * [2016/06/05： Christian Reitwiessner在Solidity中发现了一个违反模式的问题](https://blog.ethereum.org/2016/06/10/smart-contract-security/)
 * [2016/06/09： 更多的以太坊攻击：Race-To-Empty是真实的案例（vessenes.com）](http://vessenes.com/more-ethereum-attacks-race-to-empty-is-the-real-deal/)
 * [2016/06/12： 在以太坊智能合约“递归调用”漏洞发现之后没有DAO资金有风险](https://blog.slock.it/no-dao-funds-at-risk-following-the-ethereum-smart-contract-recursive-call-bug-discovery-29f482d348b)
 * [2016/06/17： 我认为TheDAO正被吸干（reddit.com）](https://www.reddit.com/r/ethereum/comments/4oi2ta/i_think_thedao_is_getting_drained_right_now/)
 * [2016/06/24： DAO的历史和经验教训（blog.slock.it）](https://blog.slock.it/the-history-of-the-dao-and-lessons-learned-d06740f8cfa5)
 
-__现实案例影响：__  
+__现实案例影响__  
 * [The DAO](https://en.wikipedia.org/wiki/The_DAO_(organization))
 
 __示例：__  
@@ -32,7 +32,7 @@ __示例：__
 4. 攻击合约有一个使用payable修饰的 `fallback()` 函数：其被用来接收资金，并会回调受害合约中的 `withdraw()` 函数。  
 5. 受害合约第二次执行代码并再次触发资金转移：还记得不，攻击合约地址的余额在第一次提取后还没有更新。结果是，攻击合约可以在几秒之内将受害合约中所有的ether取光。  
 
-__代码示例：__  
+__代码示例__  
 如下函数包含一个重入攻击漏洞。当底层函数 `call()` 发送ether到 `msg.sender` 时，它就可能被攻击：如果转账地址是一个智能合约，该支付可以使用当前交易剩余的gas触发合约的回调函数。
 ```
 function withdraw(uint _amount) {
@@ -42,7 +42,7 @@ function withdraw(uint _amount) {
 }
 ```
 
-__其他资源：__
+__其他资源__
 * [The DAO smart contract](https://etherscan.io/address/0xbb9bc244d798123fde783fcc1c72d3bb8c189413#code)
 * [Analysis of the DAO exploit](http://hackingdistributed.com/2016/06/18/analysis-of-the-dao-exploit/)
 * [Simple DAO code example](http://blockchain.unica.it/projects/ethereum-survey/attacks.html#simpledao)
@@ -83,7 +83,62 @@ function initContract() public {
 * [Unprotected function](https://github.com/trailofbits/not-so-smart-contracts/tree/master/unprotected_function)
 * [Rubixi's smart contract](https://etherscan.io/address/0xe82719202e5965Cf5D9B6673B7503a3b92DE20be#code)
 
-# 3. 算术计算
+## 3. 算术计算
+
+也称为整数上溢和整数下溢  
+_溢出情况得出的是错误的结果，特别是在未考虑这种可能性的时候会严重损害程序的可靠性和安全性。——Jules Dourlens_  
+
+整数上溢和下溢并不是新的漏洞类型，但它们在智能合约中尤其的危险，因为无符号整数无处不在，但绝大多数的程序员习惯简单的使用`int`作为整型。如果溢出发生，很多原本不可达的代码路径变成了黑客的攻击向量。
+
+**现实案例影响**  
+* [The DAO](http://blockchain.unica.it/projects/ethereum-survey/attacks.html)
+* [BatchOverflow (multiple tokens)](https://peckshield.com/2018/04/22/batchOverflow/)
+* [ProxyOverflow (multiple tokens)](https://peckshield.com/2018/04/25/proxyOverflow/)
+
+**示例**  
+1. 一个智能合约的`withdraw()`函数允许人们提取其账户中的ether余额。
+2. 攻击者尝试提取超过他/她账户的金额。
+3. `withdraw()`函数检查结果一直显示是正数，则允许攻击者提取超过他账户余额的ether。由此产生余额下溢，并变成一个比应有的大一个数量级的值。
+
+**代码示例**  
+最直接的示例是函数没有对整数下溢做检查，允许你提取无穷大数量的令牌：
+```
+function withdraw(uint _amount) {
+	require(balances[msg.sender] - _amount > 0);//漏洞点
+	msg.sender.transfer(_amount);
+	balances[msg.sender] -= _amount;
+}
+```
+
+第二个示例是一个叫1偏移错误（`off-by-one error`），一个典型的例子就是数组的长度是使用无符号整数表示：
+```
+function popArrayOfThings() {
+	require(arrayOfThings.length >= 0);
+	arrayOfThings.length--; 
+}
+```
+
+第三个示例是第一个例子的变种：两个无符号整数的算数运算结果依旧是无符号数。
+```
+function votes(uint postId, uint upvote, uint downvotes) {
+	if (upvote - downvote < 0) {
+		deletePost(postId)
+	}
+}
+```
+
+第四个示例的特征是使用很快就会被弃用的关键字`var`。因为`var`会将其表示的数值类型自适应到最小类型：比如赋值0时变量为`unit8`类型，如果这个时候一个循环会遍历超过255次，那么其永远也不会增长到那个数，其会在gas消耗完之后才停止。
+```
+for (var i = 0; i < somethingLarge; i ++) {
+	// ...
+}
+```
+
+**其他资源**  
+* [SafeMath to protect from overflows](https://ethereumdev.io/safemath-protect-overflows/)
+* [Integer overflow code example](https://github.com/trailofbits/not-so-smart-contracts/tree/master/integer_overflow)
+
+
 # 4. 未经检查的底层调用
 # 5. 拒绝服务
 # 6. 伪随机性
