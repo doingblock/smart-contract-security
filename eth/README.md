@@ -5,7 +5,7 @@ DASP Top 10
 
 ---
 
-# 1. 重入
+## 1. 重入
 
 *这种攻击利用被众多代码审计者错过很多很多次：代码审计者倾向于一次一个函数的审阅，并假定对安全子例程的调用将会如预期般的安全运行。
 ————Phil Daian*
@@ -49,7 +49,40 @@ __其他资源：__
 * [Reentrancy code example](https://github.com/trailofbits/not-so-smart-contracts/tree/master/reentrancy)
 * [How Someone Tried to Exploit a Flaw in Our Smart Contract and Steal All of Its Ether](https://blog.citymayor.co/posts/how-someone-tried-to-exploit-a-flaw-in-our-smart-contract-and-steal-all-of-its-ether/)
 
-# 2. 访问控制
+## 2. 访问控制
+_通过调用`initWallet`函数，可以将Parity钱包库合约转变成一个常规的多重签名钱包，并使你成为他的所有者。——Parity_  
+
+访问控制问题在所有的程序中都很常见，并不仅仅是智能合约中。事实上，访问控制问题在[OWASP Top 10中排名第5](https://www.owasp.org/images/7/72/OWASP_Top_10-2017_%28en%29.pdf.pdf)。人们通常通过智能合约中的public或external函数来使用合约功能。然而，不安全的**可见性**设置给了黑客直接访问合约私有值和代码逻辑的途径。另外，绕过访问控制有时候更微妙。这些漏洞在以下情况下可能发生：1、合约使用废弃的`tx.origin`来鉴别调用者；2、使用冗长的`require`来处理大型的认证逻辑；3、鲁莽的在代理库或代理合约中使用`delegatecall`。
+
+**损失**   
+接近150,000ETH（约30M美元）  
+
+**真实案例影响**  
+* [Parity钱包中Multi-sig缺陷1](http://paritytech.io/the-multi-sig-hack-a-postmortem/)
+* [Parity钱包中Multi-sig缺陷2](http://paritytech.io/a-postmortem-on-the-parity-multi-sig-library-self-destruct/)
+* [Rubixi](https://blog.ethereum.org/2016/06/19/thinking-smart-contract-security/)
+
+**示例**  
+1. 一个合约授权初始化它的地址作为合约的拥有者，这是一个授予特殊权限（例如，提取合约资金的权限）的通用做法。
+2. 不幸的是，初始化函数设置为任何人可调用——即使在它已经被调用过。这样，允许任何人成为合约的拥有者，并有权去提现合约资金。
+
+**代码示例**  
+在下面的示例中，合约`初始化函数initContract`中设置了调用者作为它的拥有者。然而，这个函数与合约的构造函数是分离的，并且没有记录追踪该函数是否已经被调用过。
+```
+function initContract() public { 
+    owner = msg.sender; 
+}
+
+```
+在Parity多重签名（multi-sig）钱包，初始化函数定义在一个“库”合约中，与钱包本身是分离的。用户可以通过`delegateCall`调用库函数来初始化他自己的钱包。不幸的是，同我们的示例代码一样，该初始化函数并没有检查钱包是否已经初始化。更糟的是，库是一个智能合约，任何人都可以初始化这个库和调用它的析构函数（销毁合约）。  
+
+**其他资源**  
+* [Fix for Parity multi-sig wallet bug 1](https://github.com/paritytech/parity/pull/6103/files)
+* [Parity security alert 2](http://paritytech.io/security-alert-2/)
+* [On the Parity wallet multi-sig hack](https://blog.zeppelin.solutions/on-the-parity-wallet-multisig-hack-405a8c12e8f7)
+* [Unprotected function](https://github.com/trailofbits/not-so-smart-contracts/tree/master/unprotected_function)
+* [Rubixi's smart contract](https://etherscan.io/address/0xe82719202e5965Cf5D9B6673B7503a3b92DE20be#code)
+
 # 3. 算术计算
 # 4. 未经检查的底层调用
 # 5. 拒绝服务
