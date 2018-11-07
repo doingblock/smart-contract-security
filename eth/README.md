@@ -5,7 +5,7 @@ DASP Top 10
 
 ---
 
-## 1. 重入
+## 1.重入
 
 *这种攻击利用被众多代码审计者错过很多很多次：代码审计者倾向于一次一个函数的审阅，并假定对安全子例程的调用将会如预期般的安全运行。
 ————Phil Daian*
@@ -164,8 +164,51 @@ function withdraw(uint256 _amount) public {
 * [Unchecked external call](https://github.com/trailofbits/not-so-smart-contracts/tree/master/unchecked_external_call)
 * [Scanning Live Ethereum Contracts for the "Unchecked-Send" Bug](http://hackingdistributed.com/2016/06/16/scanning-live-ethereum-contracts-for-bugs/)
 
+## 5. 拒绝服务
+包括**达到gas上限**，**非预期的throw**，**非预期的kill**，**访问控制被破坏**。
+_我只是偶然将它kill掉。——devops199_
 
-# 5. 拒绝服务
+拒绝服务在以太坊世界里是致命的：其他类型的应用程序最终都可以恢复，然而智能合约只要遭遇这样的攻击就会永久下线。许多的方式可以导致拒绝服务，包括交易的接收者发出恶意的行为，人为的提高计算一个函数所需的gas，滥用访问控制来访问智能合约的私有组件，利用混淆和疏忽点，等等。这种类型的攻击包括很多的变种，我们将会在接下来几年里看到很多的发展。
+
+**损失**  
+预估514,874ETH（约合300M美元）
+
+**现实案例影响**  
+* [GovernMental](https://www.reddit.com/r/ethereum/comments/4ghzhv/governmentals_1100_eth_jackpot_payout_is_stuck/)
+* [Parity Multi-sig wallet](http://paritytech.io/a-postmortem-on-the-parity-multi-sig-library-self-destruct/)
+
+**示例**  
+1. 一个`拍卖合约`允许用户对各种资产进行投标。
+2. 想要投标，用户必须携带其竞标的ether额度调用`bid(uint object)`函数。拍卖合约将竞标的ether保存在第三方托管直到商品的所有者接受标的或初始竞标者取消标的。这就意味着拍卖合约必须保存未完成的竞标的资金。
+3. `拍卖合约`同样有一个`withdraw(uint amount)`函数允许admin来提取合约中的资金。由于该函数将`amount`数量的ether发送到硬编码的固定地址，开发者决定将该函数设置为public。
+4. `攻击者`看到了潜在的攻击场景，并调用了withdraw函数，将合约中所有的资金发送到admin的地址。这个行为破坏了第三方托管的承诺和阻塞了所有未完成的竞标。
+5. 当然admin可以将资金退回到合约，但是攻击者可以不断的提现来持续发起攻击。
+
+**代码示例**  
+如下的示例（受以太王国所启发）中，游戏合约中的一个函数可以让你成为主席，如果你公开的贿赂前一个主席。不幸的是，如果前一个主席是一个智能合约，并且其拒绝接受资金，这样的话权利的转移会失败，恶意的合约将会永远是游戏的主席。听起来像是一个独裁主义：
+```
+function becomePresident() payable {
+    require(msg.value >= price); // 必须完成支付才能成为主席
+    president.transfer(price);   // 向前一个主席支付金额
+    president = msg.sender;      // 为新主席加冕
+    price = price * 2;           // 为主席设置价位
+}
+```
+
+在第二个例子中，调用者可以决定谁是下一个奖励的调用。因为在`for`循环中有高昂费用的指令，攻击者可以指定一个特别大的数来遍历，（由于以太坊中gas的限制）会阻塞该函数的正常功能。
+```
+function selectNextWinners(uint256 _largestWinner) {
+	for(uint256 i = 0; i < largestWinner, i++) {
+		// heavy code
+	}
+	largestWinner = _largestWinner;
+}
+```
+
+**其他资源**  
+* [Parity Multisig Hacked. Again](https://medium.com/chain-cloud-company-blog/parity-multisig-hack-again-b46771eaa838)
+* [Statement on the Parity multi-sig wallet vulnerability and the Cappasity token crowdsale](https://blog.artoken.io/statement-on-the-parity-multi-sig-wallet-vulnerability-and-the-cappasity-artoken-crowdsale-b3a3fed2d567)
+
 # 6. 伪随机性
 # 7. 前端运行
 # 8. 时间操控
