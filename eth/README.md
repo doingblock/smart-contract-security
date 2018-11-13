@@ -257,7 +257,29 @@ function play() public payable {
 * [Predicting Random Numbers in Ethereum Smart Contracts](https://blog.positive.com/predicting-random-numbers-in-ethereum-smart-contracts-e5358c6b8620)
 * [Random in Ethereum](https://blog.otlw.co/random-in-ethereum-50eefd09d33e)
 
-# 7. 前端运行
+## 7. 超前运行
+也被称为检查时间/time-of-check或使用时间/time-of-use（TOCTOU）、条件竞争、交易顺序依赖（TOD）。
+__结果证明，它所需要的就是一段150行左右的python代码就可以获得一个正常超前运行的算法。——Ivan Bogatyy__  
+
+由于矿工通过代表外部拥有的地址（EOA）运行代码来获得gas费用作为奖励，所以用户可以通过设置更高的费用来让他们的交易更快的挖出来。另外，又因为区块链是公开的，所有人都可以看到其他人未被打包的交易内容。这就意味着如果一个特定的用户通过交易揭露一个谜题的答案或者其他有价值的秘密，一个恶意的用户可以偷窃到答案，并复制他们的交易，但通过设置一个更高的费用来抢占原始的交易答案。如果智能合约的开发者不够小谨慎，这样的情况会导致实际的、破坏性的超前运行攻击问题。
+
+**现实案例影响**  
+* [Bancor](https://hackernoon.com/front-running-bancor-in-150-lines-of-python-with-ethereum-api-d5e2bfd0d798)
+* [ERC-20](https://docs.google.com/document/d/1YLPtQxZu1UAvO9cZ1O2RPXBbT0mooh4DYKjA_jp-RLM/)
+* [TheRun](http://www.dasp.co/)
+
+**示例**  
+1. 一个`智能合约`发布了一个RSA的大数（`N = prime1 * prime2）。
+2. 一个携带正确的`prime1`和`prime2`对公开函数`submitSolution()`进行调用的交易，（调用者）会获得奖励。
+3. Alice成功的解出了RSA大数的因子，并提交这个答案。
+4. `某人/攻击者`在区块链网络上看到了Alice的交易（包含了答案）正在等待被挖出，然后他用更高的费用复制重发了这个交易。
+5. 由于第二个交易设置了更高的费用它会首先被打包，所以`攻击者`会赢得大奖。
+
+**其他资源**  
+* [Predicting random numbers in Ethereum smart contracts](https://blog.positive.com/predicting-random-numbers-in-ethereum-smart-contracts-e5358c6b8620)
+* [Front-running, Griefing and the Perils of Virtual Settlement](https://blog.0xproject.com/front-running-griefing-and-the-perils-of-virtual-settlement-part-1-8554ab283e97)
+* [Frontrunning Bancor](https://www.youtube.com/watch?v=RL2nE3huNiI)
+
 # 8. 时间操控
 # 9. 短地址问题
 # 10. 未知引起的新问题
