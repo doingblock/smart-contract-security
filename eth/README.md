@@ -1,7 +1,7 @@
 DASP Top 10
 ---
 
-这个项目由NCC集团发起。它是一个开发合作项目，力求集合安全社区的努力来发现智能合约中的安全漏洞。
+这个[DASP Top 10项目](https://www.dasp.co/)由NCC集团发起。它是一个开发合作项目，力求集合安全社区的努力来发现智能合约中的安全漏洞。
 
 ---
 
@@ -259,7 +259,7 @@ function play() public payable {
 
 ## 7. 超前运行
 也被称为检查时间/time-of-check或使用时间/time-of-use（TOCTOU）、条件竞争、交易顺序依赖（TOD）。
-__结果证明，它所需要的就是一段150行左右的python代码就可以获得一个正常超前运行的算法。——Ivan Bogatyy__  
+_ 结果证明，它所需要的就是一段150行左右的python代码就可以获得一个正常超前运行的算法。——Ivan Bogatyy _  
 
 由于矿工通过代表外部拥有的地址（EOA）运行代码来获得gas费用作为奖励，所以用户可以通过设置更高的费用来让他们的交易更快的挖出来。另外，又因为区块链是公开的，所有人都可以看到其他人未被打包的交易内容。这就意味着如果一个特定的用户通过交易揭露一个谜题的答案或者其他有价值的秘密，一个恶意的用户可以偷窃到答案，并复制他们的交易，但通过设置一个更高的费用来抢占原始的交易答案。如果智能合约的开发者不够小谨慎，这样的情况会导致实际的、破坏性的超前运行攻击问题。
 
@@ -280,6 +280,67 @@ __结果证明，它所需要的就是一段150行左右的python代码就可以
 * [Front-running, Griefing and the Perils of Virtual Settlement](https://blog.0xproject.com/front-running-griefing-and-the-perils-of-virtual-settlement-part-1-8554ab283e97)
 * [Frontrunning Bancor](https://www.youtube.com/watch?v=RL2nE3huNiI)
 
-# 8. 时间操控
-# 9. 短地址问题
-# 10. 未知引起的新问题
+## 8.时间操控
+也称为时间戳依赖问题。
+_ 如果一个矿工在一个合约上有赌注，那么他可能会通过为他打包的区块选择一个合适的时间戳来获得一定的优势。——Nicola Atzei, Massimo Bartoletti and Tiziana Cimoli _  
+
+从锁定代币销售，到在特定时间为游戏解锁资金，智能合约有时候需要依赖当前的时间。在Solidity里，这通常是通过`block.timestamp`或它的别名`now`来完成。但是这个时间值是从哪里来的呢？答案是矿工指定。因为打包交易的矿工在报告打包区块发生的时间方面有余地，所以好的合约要避免强依赖这个时间。另外，`block.timestamp`有些时候也会在随机数的生成时使用/误用。
+
+**现实案例影响**  
+* [GovernMetal](http://blockchain.unica.it/projects/ethereum-survey/attacks.html#governmental)
+
+**示例** 
+1. 一个游戏奖励在今天午夜的第一玩家。
+2. 一个`恶意矿工`想要尝试让TA赢得游戏，并将TA打包的区块时间戳设置为午夜。
+3. 在临近午夜时分TA结束打包区块，那么当前区块的时间“足够接近”午夜，网络上其他节点验证这个区块有效之后决定接受这个区块。
+
+**代码示例**  
+下面的函数只接受特定时间之后的调用。由于矿工可以控制他们打包的区块时间戳（在某种程度上），所以他们可以试图把他们自己的交易打包到特定时间点（之后）的区块中。如果这个时间戳与指定的时间足够接近，那么这个区块就会被网络接受。再如果这个区块比其他所有尝试来赢得这个游戏的区块更早，则这个智能合约的函数就会给这个矿工发送1500 ether。
+
+```
+function play() public {
+	require(now > 1521763200 && neverPlayed == true);
+	neverPlayed = false;
+	msg.sender.transfer(1500 ether);
+}
+```
+
+**其他资源**  
+* [一个以太坊智能合约攻击的调查](https://eprint.iacr.org/2016/1007)
+* [预测以太坊智能合约上的随机数](https://blog.positive.com/predicting-random-numbers-in-ethereum-smart-contracts-e5358c6b8620)
+* [让智能合约变得更聪明](https://blog.acolyer.org/2017/02/23/making-smart-contracts-smarter/)
+
+
+## 9. 短地址攻击
+也被称为链下问题，或者客户端漏洞
+_ 服务为令牌转移准备了20字节的地址空间，然而地址的长度在使用时没有进行检查。——Pawel Bylica _  
+
+短地址攻击是EVM自身接受错误的填充参数而导致的负面影响。攻击者可以通过使用特制地址来利用这一点：通过使编码不良的客户端在将参数包含在交易之前对参数进行错误编码。那么这个是EVM问题还是客户端问题呢？这需要在智能合约中修复吗？然而每个人都有不同的意见，事实情况是大量的ether会被这个问题直接影响。好消息是这个漏洞至今还没有被利用过，它很好地证明了客户与以太坊区块链之间的互动所产生的问题。另外，还存在其他的链下问题：一个重要的问题是以太坊生态系统深度信任前端Javascript、浏览器插件和公开节点。一个臭名昭著的链下利用发生在[Coidash的ICO](https://medium.com/crypt-bytes-tech/ico-hack-coindash-ed-dd336a4f1052)：通过篡改网页上的以太坊地址来欺骗用户将ether发送到攻击者的地址上。
+
+**漏洞发展时间线**  
+April 6, 2017  怎样通过阅读区块链来发现千万美元
+
+**现实案例影响**  
+* [不知名交易所](https://blog.golemproject.net/how-to-find-10m-by-just-reading-blockchain-6ae9d39fcd95)
+
+**示例** 
+1. 一个API具有交易功能：接受接收者地址和特定数量的ether。
+2. 该API通过与带参数填充的智能合约接口`transfer(address _to, uint256 _amount)`进行交互：它通过在地址（预期是20字节长度）前填充12个0来扩展至32位地址。
+3. Bob（`0x3bdde1e9fbaef2579dd63e2abbf0be445ab93f**00**`）要求Alice给他转20个token。而它故意给出去除地址末尾0的地址给Alice。
+4. Alice通过填入Bob给的19字节地址（`0x3bdde1e9fbaef2579dd63e2abbf0be445ab93f`）来使用交易API。
+5. 该API对填入的地址填充12字节的0，使之长度变成32字节（而非预期的32字节）。这产生的效果是从随后的`_amount`参数借来1字节。
+6. 最终，EVM在执行智能合约代码时注意到输入数据没有合适的填充，而它会在缺失字节的`_amount`参数之后填充。攻击效果就是转移了256倍的token出去了。
+
+**其他资源**  
+* [ERC20短地址攻击释疑](http://vessenes.com/the-erc20-short-address-attack-explained/)
+* [分析ERC20短地址攻击](https://ericrafaloff.com/analyzing-the-erc20-short-address-attack/)
+* [智能合约短地址攻击缓解失败](https://blog.coinfabrik.com/smart-contract-short-address-attack-mitigation-failure/)
+* [从令牌中去除短地址攻击检查](https://github.com/OpenZeppelin/zeppelin-solidity/issues/261)
+
+
+## 10. 未知引起的未知问题
+_ 我们相信即使更多的安全审核和更多的测试也无济于事，因为主要问题是审核人员不知道他们需要找什么东西。——Christoph Jentzsch _  
+
+以太坊依旧处于起步阶段：开发智能合约的主要语言Solidity依然没有达到稳定版本，生态系统的工具也还是处于试验阶段。其中一些破坏力最大的漏洞让每个人都大吃一惊，并且没有任何的理由可以使人相信这个项目不会再发生一个类似意料之外的、同等破坏力的漏洞。只要投资者依旧决定将大量资金投入到复杂但经过轻微审计的代码上，我们将继续看到新的发现，从而导致可怕的后果。正式验证智能合约安全性的方法还不成熟，但它们似乎有很大的希望，因为这已经超越了今天不稳定的现状。随着新的漏洞类别的不断发现，开发人员需要持续关注，并且需要开发新工具以便在攻击者之前找到它们。这个Top10漏洞类别可能会迅速发展，直到智能合约发展达到稳定和成熟的状态。
+
+（完）
